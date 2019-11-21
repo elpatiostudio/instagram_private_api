@@ -390,6 +390,34 @@ class Client(object):
             on_login_callback(self)
         return login_res
 
+    def elpatio_user_info(self, user_id, **kwargs):
+        """
+        El Patio get user info method to avoid Instagram deprecated methods
+        :param user_id:
+        :param kwargs:
+            **first**: first post, default 10
+            **after**: post after id, default null
+        :return: data['data']['user']
+        """
+
+        query_id = 17888483320059182 # Fixed for now, may change
+        # For authed and unauthed clients, a "fresh" rhx_gis must be used
+        endpoint = 'https://instagram.com/graphql/query/?query_id={query_id}&variables={{"id":"{user_id}","first":{first} ,"after": "{after}" }}'.format(
+            query_id=query_id,
+            user_id=user_id,
+            first=kwargs.get("first", 10),
+            after=kwargs.get("after", "null")
+        )
+        data = {}
+        try:
+            import requests
+            r = requests.get(endpoint)
+            data = r.json()
+            return data['data']['user']
+        except Exception as e:
+            print("instagram_web_api.client.elpatio_user_info(): " + str(e))
+        return {"error": True, "msg": str(e)}
+
     def user_info(self, user_id, **kwargs):     # pragma: no cover
         """
         OBSOLETE. Get user info.
