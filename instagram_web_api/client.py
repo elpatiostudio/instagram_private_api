@@ -212,7 +212,7 @@ class Client(object):
         return m.hexdigest()
 
     def _make_request(self, url, params=None, headers=None, query=None,
-                      return_response=False, get_method=None):
+                      return_response=False, get_method=None,t = False):
         """
         Calls the web API.
 
@@ -258,6 +258,7 @@ class Client(object):
                 data = ''.encode('ascii')
             else:
                 data = compat_urllib_parse.urlencode(params).encode('ascii')
+
         try:
             self.logger.debug('REQUEST: {0!s} {1!s}'.format(url, req.get_method()))
             self.logger.debug('REQ HEADERS: {0!s}'.format(
@@ -438,6 +439,36 @@ class Client(object):
         if self.auto_patch:
             ClientCompatPatch.user(info['graphql']['user'], drop_incompat_keys=self.drop_incompat_keys)
         return info['graphql']['user']
+
+    def elpatio_user_info(self, user_id, **kwargs):
+        """
+        El Patio get user info method to avoid Instagram deprecated methods
+        :param user_id:
+        :param kwargs:
+            **first**: first post, default 10
+            **after**: post after id, default null
+        :return: data['data']['user']
+        """
+
+
+        query_id = 17888483320059182 # Fixed for now, may change
+        # For authed and unauthed clients, a "fresh" rhx_gis must be used
+        params = {"id":"{}".format(user_id),"first": kwargs.get("first", 10), "after": kwargs.get("after", None) }
+        endpoint = 'https://instagram.com/graphql/query/?query_id={query_id}&variables='.format(
+            query_id=query_id,
+        )
+        final_url = endpoint+json.dumps(params)
+
+        print("Debuggin: ", final_url)
+        data = {}
+        try:
+            import requests
+            r = requests.get(final_url)
+            data = r.json()
+            return data['data']['user']
+        except Exception as e:
+            print("instagram_web_api.client.elpatio_user_info(): " + str(e))
+        return {"error": True, "msg": str(e)}
 
     def user_feed(self, user_id, **kwargs):
         """
