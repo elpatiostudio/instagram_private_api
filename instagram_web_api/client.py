@@ -400,18 +400,20 @@ class Client(object):
         :return: data['data']['user']
         """
 
+
         query_id = 17888483320059182 # Fixed for now, may change
         # For authed and unauthed clients, a "fresh" rhx_gis must be used
-        endpoint = 'https://instagram.com/graphql/query/?query_id={query_id}&variables={{"id":"{user_id}","first":{first} ,"after": "{after}" }}'.format(
+        params = {"id":"{}".format(user_id),"first": kwargs.get("first", 10), "after": kwargs.get("after", None) }
+        endpoint = 'https://instagram.com/graphql/query/?query_id={query_id}&variables='.format(
             query_id=query_id,
-            user_id=user_id,
-            first=kwargs.get("first", 10),
-            after=kwargs.get("after", "null")
         )
+        final_url = endpoint+json.dumps(params)
+
+        print("Debuggin: ", final_url)
         data = {}
         try:
             import requests
-            r = requests.get(endpoint)
+            r = requests.get(final_url)
             data = r.json()
             return data['data']['user']
         except Exception as e:
