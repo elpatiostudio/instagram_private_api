@@ -361,7 +361,7 @@ class Client(object):
             res = req.json()
 
 
-            return res['data']
+            return {"data":res['data']}
 
         except compat_urllib_error.HTTPError as e:
             msg = 'HTTPError "{0!s}" while opening {1!s}'.format(e.reason, url)
