@@ -4,6 +4,7 @@
 # https://opensource.org/licenses/MIT
 
 # -*- coding: utf-8 -*-
+import requests
 
 import logging
 import hashlib
@@ -343,6 +344,8 @@ class Client(object):
                 headers['X-Instagram-GIS'] = sig
 
         req = compat_urllib_request.Request(url, headers=headers)
+        req = requests.get(url, headers=headers)
+
         if get_method:
             req.get_method = get_method
 
@@ -354,29 +357,11 @@ class Client(object):
                 data = compat_urllib_parse.urlencode(params).encode('ascii')
 
         try:
-            self.logger.debug('REQUEST: {0!s} {1!s}'.format(url, req.get_method()))
-            self.logger.debug('REQ HEADERS: {0!s}'.format(
-                ['{}: {}'.format(k, v) for k, v in headers.items()]
-            ))
-            self.logger.debug('REQ COOKIES: {0!s}'.format(
-                ['{}: {}'.format(c.name, c.value) for c in self.cookie_jar]
-            ))
-            self.logger.debug('REQ DATA: {0!s}'.format(data))
-            res = self.opener.open(req, data=data, timeout=self.timeout)
 
-            self.logger.debug('RESPONSE: {0:d} {1!s}'.format(
-                res.code, res.geturl()
-            ))
-            self.logger.debug('RES HEADERS: {0!s}'.format(
-                [u'{}: {}'.format(k, v) for k, v in res.info().items()]
-            ))
+            res = req.json()
 
-            if return_response:
-                return res
 
-            response_content = self._read_response(res)
-            self.logger.debug('RES BODY: {0!s}'.format(response_content))
-            return json.loads(response_content)
+            return res['data']
 
         except compat_urllib_error.HTTPError as e:
             msg = 'HTTPError "{0!s}" while opening {1!s}'.format(e.reason, url)
@@ -521,7 +506,6 @@ class Client(object):
         print("Debuggin: ", final_url)
         data = {}
         try:
-            import requests
             r = requests.get(final_url)
             data = r.json()
             return data['data']['user']
@@ -600,7 +584,6 @@ class Client(object):
         print("Debuggin: ", final_url)
         data = {}
         try:
-            import requests
             r = requests.get(final_url)
             data = r.json()
             return data['data']['user']
