@@ -306,79 +306,6 @@ class Client(object):
 
 
 
-    def _elpatio__make_request(self, url, params=None, headers=None, query=None,
-                      return_response=False, get_method=None,t = False):
-        """
-        Calls the web API.
-
-        :param url: fully formed api url
-        :param params: post params
-        :param headers: custom headers
-        :param query: get url params
-        :param return_response: bool flag to only return the http response object
-        :param get_method: custom http method type
-        :return:
-        """
-        if not headers:
-            headers = {
-                'User-Agent': self.user_agent,
-                'Accept': '*/*',
-                'Accept-Language': 'en-US',
-                'Accept-Encoding': 'gzip, deflate',
-                'Connection': 'close',
-            }
-            if params or params == '':
-                headers.update({
-                    'x-csrftoken': self.csrftoken,
-                    'x-requested-with': 'XMLHttpRequest',
-                    'x-instagram-ajax': self.rollout_hash,
-                    'Referer': 'https://www.instagram.com',
-                    'Authority': 'www.instagram.com',
-                    'Origin': 'https://www.instagram.com',
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                })
-        if query:
-            url += ('?' if '?' not in url else '&') + compat_urllib_parse.urlencode(query)
-            sig = self.generate_request_signature(query, url)
-            if sig:
-                headers['X-Instagram-GIS'] = sig
-
-        req = compat_urllib_request.Request(url, headers=headers)
-        req = requests.get(url, headers=headers)
-
-        if get_method:
-            req.get_method = get_method
-
-        data = None
-        if params or params == '':
-            if params == '':    # force post if empty string
-                data = ''.encode('ascii')
-            else:
-                data = compat_urllib_parse.urlencode(params).encode('ascii')
-
-        try:
-
-            res = req.json()
-
-
-            return {"data":res['data']}
-
-        except compat_urllib_error.HTTPError as e:
-            msg = 'HTTPError "{0!s}" while opening {1!s}'.format(e.reason, url)
-            if e.code == 400:
-                print(ClientBadRequestError(msg, e.code))
-            elif e.code == 403:
-                print (ClientForbiddenError(msg, e.code))
-            elif e.code == 429:
-                print (ClientThrottledError(msg, e.code))
-            print (ClientError(msg, e.code))
-
-        except (SSLError, timeout, SocketError,
-                compat_urllib_error.URLError,   # URLError is base of HTTPError
-                compat_http_client.HTTPException,
-                ConnectionError) as connection_error:
-            raise ClientConnectionError('{} {}'.format(
-                connection_error.__class__.__name__, str(connection_error)))
 
 
 
@@ -484,34 +411,6 @@ class Client(object):
             on_login_callback(self)
         return login_res
 
-    def elpatio_user_info(self, user_id, **kwargs):
-        """
-        El Patio get user info method to avoid Instagram deprecated methods
-        :param user_id:
-        :param kwargs:
-            **first**: first post, default 10
-            **after**: post after id, default null
-        :return: data['data']['user']
-        """
-
-
-        query_id = 17888483320059182 # Fixed for now, may change
-        # For authed and unauthed clients, a "fresh" rhx_gis must be used
-        params = {"id":"{}".format(user_id),"first": kwargs.get("first", 10), "after": kwargs.get("after", None) }
-        endpoint = 'https://instagram.com/graphql/query/?query_id={query_id}&variables='.format(
-            query_id=query_id,
-        )
-        final_url = endpoint+json.dumps(params)
-
-        print("Debuggin: ", final_url)
-        data = {}
-        try:
-            r = requests.get(final_url)
-            data = r.json()
-            return data['data']['user']
-        except Exception as e:
-            print("instagram_web_api.client.elpatio_user_info(): " + str(e))
-        return {"error": True, "msg": str(e)}
 
     def user_info(self, user_id, **kwargs):     # pragma: no cover
         """
@@ -1144,35 +1043,6 @@ class Client(object):
 
         return self._make_request(self.GRAPHQL_API_URL, query=query)
 
-    def elpatio_location_feed(self, location_id, **kwargs):
-        """
-        Get a location feed.
-
-        :param location_id:
-        :param kwargs:
-            - **count**: Number of records to return
-            - **end_cursor**: For pagination
-        :return:
-        """
-        count = kwargs.pop('count', 16)
-        if count > 50:
-            raise ValueError('count cannot be greater than 50')
-
-        end_cursor = kwargs.pop('end_cursor', None) or kwargs.pop('max_id', None)
-
-        variables = {
-            'id': location_id,
-            'first': int(count)
-        }
-        if end_cursor:
-            variables['after'] = end_cursor
-
-        query = {
-            'query_hash': '1b84447a4d8b6d6d0426fefb34514485',
-            'variables': json.dumps(variables, separators=(',', ':'))
-        }
-
-        return self._elpatio__make_request(self.GRAPHQL_API_URL, query=query)
 
 
     @login_required
@@ -1334,3 +1204,169 @@ class Client(object):
         :param location_id:
         """
         return self._story_feed(location_ids=[location_id])
+
+    def elpatio_tag_feed(self, tag, **kwargs):
+        """
+        Get a tag feed.
+
+        :param tag:
+        :param kwargs:
+            - **count**: Number of records to return
+            - **end_cursor**: For pagination
+        :return:
+        """
+        count = kwargs.pop('count', 16)
+        if count > 50:
+            raise ValueError('count cannot be greater than 50')
+
+        end_cursor = kwargs.pop('end_cursor', None) or kwargs.pop('max_id', None)
+
+        variables = {
+            'tag_name': tag.lower(),
+            'first': int(count),
+            'show_ranked': False,
+        }
+        if end_cursor:
+            variables['after'] = end_cursor
+        query = {
+            'query_hash': 'f92f56d47dc7a55b606908374b43a314',
+            'variables': json.dumps(variables, separators=(',', ':'))
+        }
+
+        return self._elpatio__make_request(self.GRAPHQL_API_URL, query=query)
+
+    def elpatio_location_feed(self, location_id, **kwargs):
+        """
+        Get a location feed.
+
+        :param location_id:
+        :param kwargs:
+            - **count**: Number of records to return
+            - **end_cursor**: For pagination
+        :return:
+        """
+        count = kwargs.pop('count', 16)
+        if count > 50:
+            raise ValueError('count cannot be greater than 50')
+
+        end_cursor = kwargs.pop('end_cursor', None) or kwargs.pop('max_id', None)
+
+        variables = {
+            'id': location_id,
+            'first': int(count)
+        }
+        if end_cursor:
+            variables['after'] = end_cursor
+
+        query = {
+            'query_hash': '1b84447a4d8b6d6d0426fefb34514485',
+            'variables': json.dumps(variables, separators=(',', ':'))
+        }
+
+        return self._elpatio__make_request(self.GRAPHQL_API_URL, query=query)
+
+
+
+    def elpatio_user_info(self, user_id, **kwargs):
+        """
+        El Patio get user info method to avoid Instagram deprecated methods
+        :param user_id:
+        :param kwargs:
+            **first**: first post, default 10
+            **after**: post after id, default null
+        :return: data['data']['user']
+        """
+
+
+        query_id = 17888483320059182 # Fixed for now, may change
+        # For authed and unauthed clients, a "fresh" rhx_gis must be used
+        params = {"id":"{}".format(user_id),"first": kwargs.get("first", 10), "after": kwargs.get("after", None) }
+        endpoint = 'https://instagram.com/graphql/query/?query_id={query_id}&variables='.format(
+            query_id=query_id,
+        )
+        final_url = endpoint+json.dumps(params)
+
+        print("Debuggin: ", final_url)
+        data = {}
+        try:
+            r = requests.get(final_url)
+            data = r.json()
+            return data['data']['user']
+        except Exception as e:
+            print("instagram_web_api.client.elpatio_user_info(): " + str(e))
+        return {"error": True, "msg": str(e)}
+
+
+    def _elpatio__make_request(self, url, params=None, headers=None, query=None,
+                      return_response=False, get_method=None,t = False):
+        """
+        Calls the web API.
+
+        :param url: fully formed api url
+        :param params: post params
+        :param headers: custom headers
+        :param query: get url params
+        :param return_response: bool flag to only return the http response object
+        :param get_method: custom http method type
+        :return:
+        """
+        if not headers:
+            headers = {
+                'User-Agent': self.user_agent,
+                'Accept': '*/*',
+                'Accept-Language': 'en-US',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'close',
+            }
+            if params or params == '':
+                headers.update({
+                    'x-csrftoken': self.csrftoken,
+                    'x-requested-with': 'XMLHttpRequest',
+                    'x-instagram-ajax': self.rollout_hash,
+                    'Referer': 'https://www.instagram.com',
+                    'Authority': 'www.instagram.com',
+                    'Origin': 'https://www.instagram.com',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                })
+        if query:
+            url += ('?' if '?' not in url else '&') + compat_urllib_parse.urlencode(query)
+            sig = self.generate_request_signature(query, url)
+            if sig:
+                headers['X-Instagram-GIS'] = sig
+
+        req = compat_urllib_request.Request(url, headers=headers)
+        req = requests.get(url, headers=headers)
+
+        if get_method:
+            req.get_method = get_method
+
+        data = None
+        if params or params == '':
+            if params == '':    # force post if empty string
+                data = ''.encode('ascii')
+            else:
+                data = compat_urllib_parse.urlencode(params).encode('ascii')
+
+        try:
+
+            res = req.json()
+
+
+            return {"data":res['data']}
+
+        except compat_urllib_error.HTTPError as e:
+            msg = 'HTTPError "{0!s}" while opening {1!s}'.format(e.reason, url)
+            if e.code == 400:
+                print(ClientBadRequestError(msg, e.code))
+            elif e.code == 403:
+                print (ClientForbiddenError(msg, e.code))
+            elif e.code == 429:
+                print (ClientThrottledError(msg, e.code))
+            print (ClientError(msg, e.code))
+
+        except (SSLError, timeout, SocketError,
+                compat_urllib_error.URLError,   # URLError is base of HTTPError
+                compat_http_client.HTTPException,
+                ConnectionError) as connection_error:
+            raise ClientConnectionError('{} {}'.format(
+                connection_error.__class__.__name__, str(connection_error)))
